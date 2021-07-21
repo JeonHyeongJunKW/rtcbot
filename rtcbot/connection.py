@@ -8,7 +8,7 @@ from aiortc import (
 import asyncio
 import logging
 import json
-
+import chardet
 from .base import (
     SubscriptionProducerConsumer,
     SubscriptionProducer,
@@ -18,7 +18,7 @@ from .base import (
 from .tracks import VideoSender, AudioSender, AudioReceiver, VideoReceiver
 from .subscriptions import MostRecentSubscription
 
-
+read_queue_gl ={}
 class DataChannel(SubscriptionProducerConsumer):
     """
     Represents a data channel. You can put_nowait messages into it,
@@ -29,13 +29,13 @@ class DataChannel(SubscriptionProducerConsumer):
     _log = logging.getLogger("rtcbot.RTCConnection.DataChannel")
 
     def __init__(self, rtcDataChannel, json=True):
+        global read_queue_gl
         super().__init__(asyncio.Queue, asyncio.Queue, logger=self._log)
         self._rtcDataChannel = rtcDataChannel
-
         # Directly put messages
         self._rtcDataChannel.on("message", self._put_preprocess)
         self._json = json
-
+        read_queue_gl[self._rtcDataChannel.label] = asyncio.Queue()
         self._log.debug("Ready State %s", self._rtcDataChannel.readyState)
         if self._rtcDataChannel.readyState == "open":
             # Make sure we pass messages forward
@@ -73,8 +73,11 @@ class DataChannel(SubscriptionProducerConsumer):
         self._log.debug("Stopping message sender")
 
     def _put_preprocess(self, data):
+        global read_queue_gl
         self._log.debug("Received '%s'", data)
-        print('data type is ', type(data))
+
+        if str(type(data)) == "<class 'str'>":
+            read_queue_gl[self._rtcDataChannel.label].put_nowait(data)
         if self._json:
             try:
                 data = json.loads(data)
