@@ -74,6 +74,7 @@ class DataChannel(SubscriptionProducerConsumer):
 
     def _put_preprocess(self, data):
         self._log.debug("Received '%s'", data)
+        print('data type is ', type(data))
         if self._json:
             try:
                 data = json.loads(data)
